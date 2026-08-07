@@ -27,16 +27,16 @@ class EventPublisher:
             logger.info("Disconnected from Redis message broker")
 
     async def publish(self, event: dict):
-        """Publish a normalized event to the broker."""
+        """Publish a raw notification event to the durable broker."""
         if not self.redis:
             raise RuntimeError("Redis connection is not established")
         
         try:
-            message = json.dumps(event)
-            # Using Redis Pub/Sub here. Alternatively, Redis Streams (XADD) could be used for persistence.
-            # Using Pub/Sub for simplicity as requested "publish notification events to a message broker".
-            receivers = await self.redis.publish(settings.events_topic, message)
-            logger.debug(f"Published event to topic '{settings.events_topic}'. Receivers: {receivers}")
+            # Using Redis Streams (XADD) for persistence and durability, enabling multiple consumers.
+            message = {"payload": json.dumps(event)}
+            message_id = await self.redis.xadd(settings.events_topic, message)
+            logger.debug(f"Published event to stream '{settings.events_topic}'. Message ID: {message_id}")
+            return message_id
         except Exception as e:
             logger.error(f"Failed to publish event: {e}")
             raise
