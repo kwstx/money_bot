@@ -1,11 +1,11 @@
+import asyncio
 import logging
-import uvicorn
-from fastapi import FastAPI
-from contextlib import asynccontextmanager
+import signal
+import sys
 
 from src.config import settings
-from src.publisher import publisher
-from src.api import router as api_router
+from src.core import CoreListener
+from src.adapters.webhook import WebhookAdapter
 
 logging.basicConfig(
     level=logging.INFO,
@@ -13,30 +13,43 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup logic
-    logger.info("Starting FOMO Listener Microservice")
-    await publisher.connect()
-    yield
-    # Shutdown logic
-    logger.info("Shutting down FOMO Listener Microservice")
-    await publisher.disconnect()
+async def main():
+    listener = CoreListener()
+    
+    # Initialize the webhook adapter with the listener's callback
+    webhook_adapter = WebhookAdapter(
+        publish_callback=listener.handle_notification,
+        host=settings.api_host,
+        port=settings.api_port
+    )
+    
+    # Register adapters
+    listener.register_adapter(webhook_adapter)
+    
+    # Setup graceful shutdown handlers
+    def handle_sigterm():
+        logger.info("Received termination signal")
+        asyncio.create_task(listener.stop())
 
-app = FastAPI(
-    title="FOMO Listener",
-    description="Microservice to ingest events and publish to a message broker.",
-    version="1.0.0",
-    lifespan=lifespan
-)
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        try:
+            loop.add_signal_handler(sig, handle_sigterm)
+        except NotImplementedError:
+            # Signal handlers might not be fully supported on Windows Event Loops
+            pass
 
-# Include the API router
-app.include_router(api_router)
+    try:
+        await listener.start()
+    except asyncio.CancelledError:
+        pass
+    except KeyboardInterrupt:
+        logger.info("Received KeyboardInterrupt")
+    finally:
+        await listener.stop()
 
 if __name__ == "__main__":
-    uvicorn.run(
-        "main:app",
-        host=settings.api_host,
-        port=settings.api_port,
-        reload=True
-    )
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Program exiting")
