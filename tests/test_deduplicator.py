@@ -84,7 +84,7 @@ class TestDeduplicator(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(fields["notification_type"], "generic_event")
         self.assertEqual(fields["timestamp"], "")
 
-    def test_compute_fingerprint_deterministic(self):
+    async def test_compute_fingerprint_deterministic(self):
         payload1 = {
             "source": "sys", "event_type": "event",
             "payload": {"sender": "Alice", "body": "Hello"}
@@ -95,8 +95,8 @@ class TestDeduplicator(unittest.IsolatedAsyncioTestCase):
             "payload": {"body": "hello", "sender": "alice"}
         }
         
-        fp1 = self.dedup.compute_fingerprint(payload1)
-        fp2 = self.dedup.compute_fingerprint(payload2)
+        fp1 = await self.dedup.compute_fingerprint(payload1)
+        fp2 = await self.dedup.compute_fingerprint(payload2)
         
         self.assertEqual(fp1, fp2)
         

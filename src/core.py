@@ -39,7 +39,7 @@ class CoreListener:
             tracker.receipt_time = incoming_telemetry.get("receipt_time")
 
         # Deduplication check
-        fingerprint = self.deduplicator.compute_fingerprint(payload)
+        fingerprint = await self.deduplicator.compute_fingerprint(payload)
         is_duplicate = await self.deduplicator.is_duplicate_and_store(fingerprint)
         
         if is_duplicate:
@@ -49,12 +49,15 @@ class CoreListener:
         tracker.record_parse_start()
         
         try:
-            canonical_event = CanonicalNotificationEvent(
-                source_app_id=payload.get("source", "unknown"),
-                raw_payload=payload,
-                telemetry=tracker.to_dict()
-            )
-            event_dict = canonical_event.model_dump(mode="json")
+            def _parse():
+                canonical_event = CanonicalNotificationEvent(
+                    source_app_id=payload.get("source", "unknown"),
+                    raw_payload=payload,
+                    telemetry=tracker.to_dict()
+                )
+                return canonical_event.model_dump(mode="json")
+                
+            event_dict = await asyncio.to_thread(_parse)
         except Exception as e:
             logger.error(f"Failed to canonicalize event: {e}")
             event_dict = payload

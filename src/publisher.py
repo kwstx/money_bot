@@ -36,9 +36,11 @@ class EventPublisher:
             if tracker:
                 tracker.record_pre_queue()
                 event["telemetry"] = tracker.to_dict()
-
+            import asyncio
+            
             # Using Redis Streams (XADD) for persistence and durability, enabling multiple consumers.
-            message = {"payload": json.dumps(event)}
+            payload_str = await asyncio.to_thread(json.dumps, event)
+            message = {"payload": payload_str}
             message_id = await self.redis.xadd(settings.events_topic, message)
             
             if tracker:

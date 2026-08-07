@@ -7,10 +7,24 @@ from src.config import settings
 from src.core import CoreListener
 from src.adapters.webhook import WebhookAdapter
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-)
+import logging.handlers
+import queue
+
+# Setup basic logging to a queue for non-blocking asynchronous logging
+log_queue = queue.Queue(-1)
+queue_handler = logging.handlers.QueueHandler(log_queue)
+
+# Standard stream handler that does the actual formatting and writing
+stream_handler = logging.StreamHandler(sys.stdout)
+stream_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
+
+queue_listener = logging.handlers.QueueListener(log_queue, stream_handler)
+queue_listener.start()
+
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+root_logger.addHandler(queue_handler)
+
 logger = logging.getLogger(__name__)
 
 async def main():
@@ -47,6 +61,7 @@ async def main():
         logger.info("Received KeyboardInterrupt")
     finally:
         await listener.stop()
+        queue_listener.stop()
 
 if __name__ == "__main__":
     try:

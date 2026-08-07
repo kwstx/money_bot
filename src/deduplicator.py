@@ -140,13 +140,18 @@ class Deduplicator:
             "message_content": normalize_string(message_content) if message_content else ""
         }
 
-    def compute_fingerprint(self, notification_dict: dict) -> str:
+    async def compute_fingerprint(self, notification_dict: dict) -> str:
         """
         Computes a deterministic SHA-256 fingerprint from the notification payload.
+        Offloaded to a background thread to prevent blocking the async event loop with CPU-bound work.
         """
-        stable_fields = self.extract_stable_fields(notification_dict)
-        serialized = json.dumps(stable_fields, sort_keys=True)
-        return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+        def _compute():
+            stable_fields = self.extract_stable_fields(notification_dict)
+            serialized = json.dumps(stable_fields, sort_keys=True)
+            return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+            
+        import asyncio
+        return await asyncio.to_thread(_compute)
 
     async def is_duplicate_and_store(self, fingerprint: str) -> bool:
         """
