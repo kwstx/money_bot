@@ -5,6 +5,8 @@ from typing import List
 from .publisher import publisher
 from .adapters.base import IngestionAdapter
 from .deduplicator import Deduplicator
+from .schemas import CanonicalNotificationEvent
+from .telemetry import TelemetryTracker
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +33,11 @@ class CoreListener:
         Callback provided to adapters to handle an incoming notification.
         Checks for duplicates before pushing data to the publisher (e.g., Redis).
         """
+        tracker = TelemetryTracker()
+        incoming_telemetry = payload.get("telemetry", {})
+        if incoming_telemetry:
+            tracker.receipt_time = incoming_telemetry.get("receipt_time")
+
         # Deduplication check
         fingerprint = self.deduplicator.compute_fingerprint(payload)
         is_duplicate = await self.deduplicator.is_duplicate_and_store(fingerprint)
@@ -39,7 +46,23 @@ class CoreListener:
             logger.info(f"Duplicate notification detected (fingerprint: {fingerprint}). Discarding.")
             return
 
-        await publisher.publish(payload)
+        tracker.record_parse_start()
+        
+        try:
+            canonical_event = CanonicalNotificationEvent(
+                source_app_id=payload.get("source", "unknown"),
+                raw_payload=payload,
+                telemetry=tracker.to_dict()
+            )
+            event_dict = canonical_event.model_dump(mode="json")
+        except Exception as e:
+            logger.error(f"Failed to canonicalize event: {e}")
+            event_dict = payload
+
+        tracker.record_parse_end()
+        event_dict["telemetry"] = tracker.to_dict()
+
+        await publisher.publish(event_dict, tracker)
 
     async def start(self):
         """

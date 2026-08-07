@@ -8,6 +8,7 @@ class RawNotification(BaseModel):
     source: str
     event_type: str
     payload: Dict[str, Any]
+    telemetry: Dict[str, Any] = Field(default_factory=dict, description="Telemetry tracking timestamps")
 
 class CanonicalNotificationEvent(BaseModel):
     """
@@ -34,3 +35,4 @@ class CanonicalNotificationEvent(BaseModel):
     raw_payload: Dict[str, Any] = Field(..., description="Keeping the raw payload ensures future parsers can reprocess historical events")
     parsing_version: str = Field(default="1.0.0", description="Parsing version")
     ingestion_latency_ms: Optional[float] = Field(default=None, description="Ingestion latency in milliseconds")
+    telemetry: Dict[str, Any] = Field(default_factory=dict, description="Telemetry tracking timestamps")

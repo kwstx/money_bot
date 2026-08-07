@@ -3,11 +3,13 @@ import logging
 import uvicorn
 from datetime import datetime, timezone
 from fastapi import FastAPI, APIRouter, HTTPException
+from prometheus_client import make_asgi_app
 from typing import Callable, Awaitable, Any
 
 from .base import IngestionAdapter
 from ..schemas import RawNotification
 from ..config import settings
+from ..telemetry import TelemetryTracker
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +27,11 @@ class WebhookAdapter(IngestionAdapter):
 
     def _create_app(self) -> FastAPI:
         app = FastAPI(title="Webhook Adapter", version="1.0.0")
+        
+        # Mount Prometheus metrics endpoint
+        metrics_app = make_asgi_app()
+        app.mount("/metrics", metrics_app)
+
         router = APIRouter()
 
         @router.get("/health")
@@ -36,7 +43,11 @@ class WebhookAdapter(IngestionAdapter):
 
         @router.post("/webhooks/fomo", status_code=202)
         async def ingest_webhook(notification: RawNotification):
+            tracker = TelemetryTracker()
+            tracker.record_receipt()
             try:
+                # Attach telemetry metadata
+                notification.telemetry = tracker.to_dict()
                 # Use the provided callback to publish the event
                 await self.publish_callback(notification.model_dump(mode="json"))
                 return {"status": "accepted"}

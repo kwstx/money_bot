@@ -2,6 +2,7 @@ import json
 import logging
 from redis.asyncio import Redis
 from .config import settings
+from .telemetry import TelemetryTracker
 
 logger = logging.getLogger(__name__)
 
@@ -26,15 +27,23 @@ class EventPublisher:
             await self.redis.close()
             logger.info("Disconnected from Redis message broker")
 
-    async def publish(self, event: dict):
+    async def publish(self, event: dict, tracker: TelemetryTracker = None):
         """Publish a raw notification event to the durable broker."""
         if not self.redis:
             raise RuntimeError("Redis connection is not established")
         
         try:
+            if tracker:
+                tracker.record_pre_queue()
+                event["telemetry"] = tracker.to_dict()
+
             # Using Redis Streams (XADD) for persistence and durability, enabling multiple consumers.
             message = {"payload": json.dumps(event)}
             message_id = await self.redis.xadd(settings.events_topic, message)
+            
+            if tracker:
+                tracker.record_post_queue()
+
             logger.debug(f"Published event to stream '{settings.events_topic}'. Message ID: {message_id}")
             return message_id
         except Exception as e:
