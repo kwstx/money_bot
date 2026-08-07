@@ -55,8 +55,15 @@ class CoreListener:
         
         try:
             def _parse():
+                from .enricher import NotificationEnricher
+                
+                category, wallet, token = NotificationEnricher.classify(payload)
+                
                 canonical_event = CanonicalNotificationEvent(
                     source_app_id=payload.get("source", "unknown"),
+                    event_category=category,
+                    referenced_wallet_address=wallet,
+                    referenced_token_address=token,
                     raw_payload=payload,
                     telemetry=tracker.to_dict()
                 )

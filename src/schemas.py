@@ -23,6 +23,7 @@ class CanonicalNotificationEvent(BaseModel):
     
     title: Optional[str] = Field(default=None, description="Notification title")
     body: Optional[str] = Field(default=None, description="Notification body")
+    event_category: str = Field(default="generic", description="High-level classification category (e.g., wallet, token, swap)")
     
     sender_metadata: Dict[str, Any] = Field(default_factory=dict, description="Sender metadata")
     referenced_wallet_address: Optional[str] = Field(default=None, description="Referenced wallet address")
