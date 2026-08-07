@@ -38,8 +38,13 @@ class CoreListener:
         if incoming_telemetry:
             tracker.receipt_time = incoming_telemetry.get("receipt_time")
 
-        # Deduplication check
+        # Compute fingerprint which serves as the idempotency key
         fingerprint = await self.deduplicator.compute_fingerprint(payload)
+        
+        # Write raw notification to immutable storage before processing further
+        await publisher.publish_raw(payload, fingerprint, tracker)
+
+        # Idempotency / Deduplication check
         is_duplicate = await self.deduplicator.is_duplicate_and_store(fingerprint)
         
         if is_duplicate:

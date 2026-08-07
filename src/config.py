@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     # Redis Message Broker settings
     redis_url: str = "redis://localhost:6379/0"
     events_topic: str = "fomo.events"
+    raw_events_topic: str = "fomo.raw_events"
     
     # Deduplication settings
     dedup_enabled: bool = True

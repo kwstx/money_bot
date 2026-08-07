@@ -27,8 +27,31 @@ class EventPublisher:
             await self.redis.close()
             logger.info("Disconnected from Redis message broker")
 
+    async def publish_raw(self, payload: dict, fingerprint: str, tracker: TelemetryTracker = None):
+        """Publish a raw notification payload to the immutable log."""
+        if not self.redis:
+            raise RuntimeError("Redis connection is not established")
+        
+        try:
+            import asyncio
+            payload_str = await asyncio.to_thread(json.dumps, payload)
+            
+            message = {
+                "fingerprint": fingerprint,
+                "payload": payload_str
+            }
+            if tracker and tracker.receipt_time:
+                message["receipt_time"] = str(tracker.receipt_time)
+                
+            message_id = await self.redis.xadd(settings.raw_events_topic, message)
+            logger.debug(f"Published raw event to stream '{settings.raw_events_topic}'. Message ID: {message_id}")
+            return message_id
+        except Exception as e:
+            logger.error(f"Failed to publish raw event: {e}")
+            raise
+
     async def publish(self, event: dict, tracker: TelemetryTracker = None):
-        """Publish a raw notification event to the durable broker."""
+        """Publish a canonical notification event to the durable broker."""
         if not self.redis:
             raise RuntimeError("Redis connection is not established")
         
