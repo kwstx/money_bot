@@ -2,7 +2,7 @@ import asyncio
 import logging
 import uvicorn
 from datetime import datetime, timezone
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Depends
 from prometheus_client import make_asgi_app
 from typing import Callable, Awaitable, Any
 
@@ -12,6 +12,35 @@ from ..config import settings
 from ..telemetry import TelemetryTracker
 
 logger = logging.getLogger(__name__)
+
+async def limit_payload_size(request: Request):
+    """Enforce maximum body size to protect against DoS attacks."""
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > settings.max_payload_size_bytes:
+                raise HTTPException(status_code=413, detail="Payload Too Large")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid Content-Length Header")
+    
+    # Read stream up to limit to catch spoofed or missing Content-Length headers
+    body = b""
+    async for chunk in request.stream():
+        body += chunk
+        if len(body) > settings.max_payload_size_bytes:
+            raise HTTPException(status_code=413, detail="Payload Too Large")
+            
+    # Reset request receive function so the body can be read again downstream
+    async def receive():
+        return {"type": "http.request", "body": body, "more_body": False}
+    request._receive = receive
+
+async def verify_api_key(request: Request):
+    """Enforce API Key token authentication if configured."""
+    if settings.auth_token:
+        token = request.headers.get(settings.auth_header_name)
+        if not token or token != settings.auth_token:
+            raise HTTPException(status_code=401, detail="Unauthorized")
 
 class WebhookAdapter(IngestionAdapter):
     """
@@ -41,7 +70,7 @@ class WebhookAdapter(IngestionAdapter):
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
-        @router.post("/webhooks/fomo", status_code=202)
+        @router.post("/webhooks/fomo", status_code=202, dependencies=[Depends(limit_payload_size), Depends(verify_api_key)])
         async def ingest_webhook(notification: RawNotification):
             tracker = TelemetryTracker()
             tracker.record_receipt()
@@ -57,6 +86,7 @@ class WebhookAdapter(IngestionAdapter):
 
         app.include_router(router)
         return app
+
 
     async def start(self) -> None:
         logger.info(f"Starting WebhookAdapter on {self.host}:{self.port}")

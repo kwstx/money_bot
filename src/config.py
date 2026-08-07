@@ -1,9 +1,16 @@
+from typing import Optional
+from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # API settings
     api_host: str = "0.0.0.0"
     api_port: int = 8000
+    
+    # Security settings
+    auth_token: Optional[str] = None
+    auth_header_name: str = "X-API-Key"
+    max_payload_size_bytes: int = 65536  # Default limit: 64 KB
     
     # Redis Message Broker settings
     redis_url: str = "redis://localhost:6379/0"
@@ -16,7 +23,7 @@ class Settings(BaseSettings):
     dedup_prefix: str = "dedup:fingerprint:"
     dedup_use_local_fallback: bool = True
     
-    class Config:
-        env_file = ".env"
+    model_config = ConfigDict(env_file=".env")
 
 settings = Settings()
+

@@ -1,14 +1,44 @@
-from pydantic import BaseModel, Field
+import re
+import html
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional, Dict, Any
 from datetime import datetime, timezone
 import uuid
 
+def sanitize_text(text: str) -> str:
+    """Strips HTML tags and escapes special characters to prevent injection."""
+    if not isinstance(text, str):
+        return text
+    # Strip HTML tags
+    cleaned = re.sub(r"<[a-zA-Z/][^>]*>", "", text)
+    # Normalize/escape HTML special characters
+    cleaned = html.escape(html.unescape(cleaned))
+    return cleaned
+
+def sanitize_value(val: Any) -> Any:
+    """Recursively sanitizes string values in dicts, lists, and strings."""
+    if isinstance(val, str):
+        return sanitize_text(val)
+    elif isinstance(val, dict):
+        return {k: sanitize_value(v) for k, v in val.items()}
+    elif isinstance(val, list):
+        return [sanitize_value(item) for item in val]
+    return val
+
 class RawNotification(BaseModel):
     """Raw incoming notification payload."""
-    source: str
-    event_type: str
+    source: str = Field(..., min_length=1, max_length=256)
+    event_type: str = Field(..., min_length=1, max_length=256)
     payload: Dict[str, Any]
     telemetry: Dict[str, Any] = Field(default_factory=dict, description="Telemetry tracking timestamps")
+
+    @model_validator(mode="after")
+    def sanitize_fields(self) -> "RawNotification":
+        self.source = sanitize_text(self.source)
+        self.event_type = sanitize_text(self.event_type)
+        self.payload = sanitize_value(self.payload)
+        return self
+
 
 class CanonicalNotificationEvent(BaseModel):
     """
