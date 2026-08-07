@@ -4,6 +4,7 @@ from typing import List
 
 from .publisher import publisher
 from .adapters.base import IngestionAdapter
+from .deduplicator import Deduplicator
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,7 @@ class CoreListener:
     def __init__(self):
         self.adapters: List[IngestionAdapter] = []
         self._tasks: List[asyncio.Task] = []
+        self.deduplicator = Deduplicator(redis_client=publisher.redis)
 
     def register_adapter(self, adapter: IngestionAdapter):
         """
@@ -27,8 +29,16 @@ class CoreListener:
     async def handle_notification(self, payload: dict) -> None:
         """
         Callback provided to adapters to handle an incoming notification.
-        This simply pushes the data to the publisher (e.g., Redis).
+        Checks for duplicates before pushing data to the publisher (e.g., Redis).
         """
+        # Deduplication check
+        fingerprint = self.deduplicator.compute_fingerprint(payload)
+        is_duplicate = await self.deduplicator.is_duplicate_and_store(fingerprint)
+        
+        if is_duplicate:
+            logger.info(f"Duplicate notification detected (fingerprint: {fingerprint}). Discarding.")
+            return
+
         await publisher.publish(payload)
 
     async def start(self):
@@ -37,6 +47,9 @@ class CoreListener:
         """
         logger.info("Starting CoreListener...")
         await publisher.connect()
+        
+        # Inject the connected Redis client into the deduplicator
+        self.deduplicator.redis = publisher.redis
 
         # Start all adapters as background tasks
         for adapter in self.adapters:
