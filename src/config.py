@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     dedup_prefix: str = "dedup:fingerprint:"
     dedup_use_local_fallback: bool = True
     
+    # Health Monitoring and Self-Recovery
+    health_check_interval_seconds: int = 15
+    notification_rate_threshold_seconds: int = 60
+    health_redis_check_key: str = "fomo.health.heartbeat"
+    
     model_config = ConfigDict(env_file=".env")
 
 settings = Settings()

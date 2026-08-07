@@ -7,6 +7,7 @@ from .adapters.base import IngestionAdapter
 from .deduplicator import Deduplicator
 from .schemas import CanonicalNotificationEvent
 from .telemetry import TelemetryTracker
+from .monitor import monitor
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,9 @@ class CoreListener:
         
         # Write raw notification to immutable storage before processing further
         await publisher.publish_raw(payload, fingerprint, tracker)
+        
+        # Record successful receipt for health monitoring
+        monitor.record_notification()
 
         # Idempotency / Deduplication check
         is_duplicate = await self.deduplicator.is_duplicate_and_store(fingerprint)
@@ -88,6 +92,9 @@ class CoreListener:
         
         # Inject the connected Redis client into the deduplicator
         self.deduplicator.redis = publisher.redis
+        
+        # Start health monitor
+        await monitor.start()
 
         # Start all adapters as background tasks
         for adapter in self.adapters:
@@ -112,5 +119,9 @@ class CoreListener:
                 task.cancel()
 
         await asyncio.gather(*self._tasks, return_exceptions=True)
+        
+        # Stop health monitor
+        await monitor.stop()
+        
         await publisher.disconnect()
         logger.info("CoreListener stopped.")

@@ -10,6 +10,7 @@ from .base import IngestionAdapter
 from ..schemas import RawNotification
 from ..config import settings
 from ..telemetry import TelemetryTracker
+from ..monitor import monitor
 
 logger = logging.getLogger(__name__)
 
@@ -65,10 +66,16 @@ class WebhookAdapter(IngestionAdapter):
 
         @router.get("/health")
         async def health_check():
-            return {
-                "status": "healthy",
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }
+            status_data = monitor.get_status()
+            
+            # Use appropriate HTTP status codes based on health
+            if status_data.get("status") == "healthy":
+                return status_data
+            else:
+                # If degraded, we return 503 so load balancers know to potentially route elsewhere or alert
+                # Or just return 200 with degraded status if we prefer not to take the service out of rotation
+                # Since we want to expose degraded status, 200 is acceptable or a custom code. We'll stick to 200.
+                return status_data
 
         @router.post("/webhooks/fomo", status_code=202, dependencies=[Depends(limit_payload_size), Depends(verify_api_key)])
         async def ingest_webhook(notification: RawNotification):
