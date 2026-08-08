@@ -67,3 +67,28 @@ class CanonicalNotificationEvent(BaseModel):
     parsing_version: str = Field(default="1.0.0", description="Parsing version")
     ingestion_latency_ms: Optional[float] = Field(default=None, description="Ingestion latency in milliseconds")
     telemetry: Dict[str, Any] = Field(default_factory=dict, description="Telemetry tracking timestamps")
+
+
+class ExtractedEntity(BaseModel):
+    """Represents a discrete entity extracted from a notification."""
+    entity_type: str = Field(..., description="Type of entity (e.g., wallet, token, contract, url, amount)")
+    value: str = Field(..., description="The extracted string value")
+    context: str = Field(default="", description="Surrounding text or context where it was found")
+    confidence: float = Field(default=1.0, description="Confidence score of this extraction (0.0 to 1.0)")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional enriched data (e.g., blockchain_id, chain_name, token_symbol)")
+
+
+class ParsedIntelligenceEvent(BaseModel):
+    """The serialized output of the Notification Parser pipeline."""
+    event_id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="Globally unique parsed event identifier")
+    original_event_id: str = Field(..., description="The ID of the canonical event this was parsed from")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Timestamp of parsing completion")
+    
+    normalized_text: str = Field(..., description="The cleaned, normalized version of the notification body")
+    entities: list[ExtractedEntity] = Field(default_factory=list, description="All entities extracted during the pipeline")
+    
+    primary_category: str = Field(default="unknown", description="The overall determined category of the notification")
+    overall_confidence: float = Field(default=0.0, description="Overall confidence score for the parsing result (0.0 to 1.0)")
+    
+    enrichment_data: Dict[str, Any] = Field(default_factory=dict, description="Additional context fetched or inferred during enrichment")
+    telemetry: Dict[str, Any] = Field(default_factory=dict, description="Telemetry tracking timestamps")
