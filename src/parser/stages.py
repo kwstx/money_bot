@@ -5,8 +5,11 @@ from .normalizer import TextNormalizer
 from .extractors import (
     WalletExtractor, TokenExtractor, BlockchainExtractor,
     TransactionExtractor, URLExtractor, UsernameExtractor,
-    TimestampExtractor, NumericExtractor, ActionVerbExtractor
+    TimestampExtractor, NumericExtractor, ActionVerbExtractor,
+    SemanticExtractor
 )
+import eth_utils
+import base58
 
 # Instantiate extractors
 EXTRACTORS = [
@@ -18,7 +21,8 @@ EXTRACTORS = [
     UsernameExtractor(),
     TimestampExtractor(),
     NumericExtractor(),
-    ActionVerbExtractor()
+    ActionVerbExtractor(),
+    SemanticExtractor()
 ]
 
 def normalize(text: str) -> str:
@@ -43,11 +47,34 @@ def validate_entities(entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Stage 4: Validation (filtering out false positives)."""
     valid_entities = []
     for ent in entities:
-        # Specific validation logic can go here (e.g. EVM checksum verification)
-        if ent["entity_type"] == "wallet" and ent["metadata"].get("chain") == "solana":
-            # Extra checks could be added here
-            pass
-        valid_entities.append(ent)
+        is_valid = True
+        
+        # EVM Checksum Validation
+        if ent["metadata"].get("chain") == "evm":
+            val = ent["value"]
+            if ent["entity_type"] in ["wallet", "token"]:
+                # Ensure it's a valid hex address. If it has mixed casing, it must be a valid checksum.
+                if not eth_utils.is_address(val):
+                    is_valid = False
+                elif any(c.isupper() for c in val[2:]) and any(c.islower() for c in val[2:]):
+                    if not eth_utils.is_checksum_address(val):
+                        is_valid = False
+
+        # Solana Base58 format validation
+        if ent["metadata"].get("chain") == "solana":
+            val = ent["value"]
+            try:
+                decoded = base58.b58decode(val)
+                if ent["entity_type"] == "wallet" and len(decoded) != 32:
+                    is_valid = False
+                elif ent["entity_type"] == "transaction" and len(decoded) != 64:
+                    is_valid = False
+            except ValueError:
+                is_valid = False
+                
+        if is_valid:
+            valid_entities.append(ent)
+            
     return valid_entities
 
 def enrich_entities(entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

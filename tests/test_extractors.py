@@ -2,7 +2,8 @@ import pytest
 from src.parser.extractors import (
     WalletExtractor, TokenExtractor, BlockchainExtractor,
     TransactionExtractor, URLExtractor, UsernameExtractor,
-    TimestampExtractor, NumericExtractor, ActionVerbExtractor
+    TimestampExtractor, NumericExtractor, ActionVerbExtractor,
+    SemanticExtractor
 )
 
 def test_wallet_extractor():
@@ -42,3 +43,13 @@ def test_numeric_extractor():
     assert any(e["entity_type"] == "percentage" and e["value"] == "50" for e in entities)
     assert any(e["entity_type"] == "amount" and e["value"] == "5.5" and e["metadata"]["currency"] == "SOL" for e in entities)
     assert any(e["entity_type"] == "amount" and e["value"] == "100.50" and e["metadata"]["currency"] == "USD" for e in entities)
+
+def test_semantic_extractor():
+    extractor = SemanticExtractor()
+    text = "The developer added liquidity and then a large whale accumulation started"
+    entities = extractor.extract(text)
+    
+    assert len(entities) == 2
+    types = [e["value"] for e in entities]
+    assert "LIQUIDITY_ADD" in types
+    assert "WHALE_ACCUMULATION" in types

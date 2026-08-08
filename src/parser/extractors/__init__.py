@@ -8,6 +8,7 @@ from .username import UsernameExtractor
 from .timestamp import TimestampExtractor
 from .numeric import NumericExtractor
 from .action import ActionVerbExtractor
+from .semantic import SemanticExtractor
 
 __all__ = [
     "BaseExtractor",
@@ -19,5 +20,6 @@ __all__ = [
     "UsernameExtractor",
     "TimestampExtractor",
     "NumericExtractor",
-    "ActionVerbExtractor"
+    "ActionVerbExtractor",
+    "SemanticExtractor"
 ]
