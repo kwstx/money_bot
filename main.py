@@ -10,13 +10,27 @@ from src.adapters.webhook import WebhookAdapter
 import logging.handlers
 import queue
 
+import json
+
+class JSONFormatter(logging.Formatter):
+    def format(self, record):
+        log_record = {
+            "time": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "name": record.name,
+            "message": record.getMessage(),
+        }
+        if record.exc_info:
+            log_record["exc_info"] = self.formatException(record.exc_info)
+        return json.dumps(log_record)
+
 # Setup basic logging to a queue for non-blocking asynchronous logging
 log_queue = queue.Queue(-1)
 queue_handler = logging.handlers.QueueHandler(log_queue)
 
 # Standard stream handler that does the actual formatting and writing
 stream_handler = logging.StreamHandler(sys.stdout)
-stream_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
+stream_handler.setFormatter(JSONFormatter())
 
 queue_listener = logging.handlers.QueueListener(log_queue, stream_handler)
 queue_listener.start()

@@ -12,5 +12,5 @@ COPY . .
 # Expose API port
 EXPOSE 8000
 
-# Run the FastAPI application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the application programmatically
+CMD ["python", "main.py"]
