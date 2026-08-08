@@ -115,7 +115,7 @@ def test_parser_version_and_entity_confidence():
     # Invalid Solana wallet -> confidence dropped to 0.1
     # Invalid EVM address (bad checksum mixed casing) -> confidence dropped to 0.1
     sol_valid = "9v9CwkB4pE6tNZb9TjT78qF1U32S9vXm6vK5rS98QxW1"
-    sol_invalid = "0000000000000000000000000000000"  # Invalid characters/length
+    sol_invalid = "9v9CwkB4pE6tNZb9TjT78qF1U32S9vXm6vK5rS98Qx"  # Invalid length when decoded (31 bytes instead of 32)
     evm_invalid = "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA9604a" # Last char lowercase instead of uppercase checksum
     
     text_validation = f"Valid Solana: {sol_valid}, Invalid Solana: {sol_invalid}, Invalid EVM: {evm_invalid}"

@@ -10,6 +10,7 @@ from .market import MarketWorkflow
 from .social import SocialWorkflow
 from .narrative import NarrativeWorkflow
 from .risk import RiskWorkflow
+from .intelligence import IntelligenceWorkflow
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,8 @@ class WorkflowRouter:
             MarketWorkflow(),
             SocialWorkflow(),
             NarrativeWorkflow(),
-            RiskWorkflow()
+            RiskWorkflow(),
+            IntelligenceWorkflow()
         ]
 
     async def route_event(self, event_payload: dict) -> None:
