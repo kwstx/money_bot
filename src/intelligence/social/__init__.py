@@ -3,9 +3,15 @@ from .schemas import (
     CommunityMetrics,
     InfluencerProfile,
     OffChainCatalyst,
-    SocialIntelligenceResult
+    SocialIntelligenceResult,
+    NarrativeAnalysis,
+    NarrativeLifecycle,
+    TrendMetrics,
+    ViralDynamics,
+    NarrativePrediction
 )
 from .engine import SocialIntelligenceEngine
+from .narrative import NarrativeDynamicsEngine
 
 __all__ = [
     "SocialSignal",
@@ -13,5 +19,11 @@ __all__ = [
     "InfluencerProfile",
     "OffChainCatalyst",
     "SocialIntelligenceResult",
-    "SocialIntelligenceEngine"
+    "SocialIntelligenceEngine",
+    "NarrativeDynamicsEngine",
+    "NarrativeAnalysis",
+    "NarrativeLifecycle",
+    "TrendMetrics",
+    "ViralDynamics",
+    "NarrativePrediction"
 ]

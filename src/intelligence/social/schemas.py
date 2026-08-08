@@ -129,3 +129,59 @@ class SocialIntelligenceResult(BaseModel):
     
     actionable_signals: List[Dict[str, Any]] = Field(default_factory=list, description="Derived triggers for the trading engine")
     metadata: Dict[str, Any] = Field(default_factory=dict)
+
+class NarrativeLifecycle(str):
+    EMERGING = "EMERGING"
+    ACCELERATING = "ACCELERATING"
+    MATURE = "MATURE"
+    SATURATED = "SATURATED"
+    ROTATING = "ROTATING"
+    DECLINING = "DECLINING"
+    UNKNOWN = "UNKNOWN"
+
+class NarrativeAnalysis(BaseModel):
+    """Detection and lifecycle analysis of a broader narrative or theme."""
+    narrative_id: str = Field(..., description="Unique ID for the narrative theme")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    
+    related_concepts: List[str] = Field(default_factory=list, description="Keywords, tags, or concepts in this cluster")
+    associated_tokens: List[str] = Field(default_factory=list, description="Tokens strongly correlated with this narrative")
+    
+    current_phase: str = Field(default=NarrativeLifecycle.UNKNOWN, description="Current lifecycle phase")
+    phase_confidence: float = Field(default=0.0, description="Confidence in the detected phase (0.0 to 1.0)")
+    
+    rotating_into: Optional[str] = Field(default=None, description="If rotating, the narrative it is transitioning into")
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+class TrendMetrics(BaseModel):
+    """Measurements of attention, engagement, and unique participants for a trend."""
+    target_id: str
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    
+    attention_score: float = Field(default=0.0, description="Overall volume of mentions/views")
+    engagement_acceleration: float = Field(default=0.0, description="Rate of change of active engagement")
+    unique_participants_growth: float = Field(default=0.0, description="Rate of new unique actors joining")
+    search_interest_momentum: float = Field(default=0.0, description="Trend in external search or query volume")
+    cross_platform_propagation: float = Field(default=0.0, description="Degree to which it is spreading across different platforms")
+
+class ViralDynamics(BaseModel):
+    """Analysis of viral growth and separation from coordinated campaigns."""
+    target_id: str
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    
+    is_viral: bool = Field(default=False, description="Is it experiencing unusually rapid expansion?")
+    viral_velocity: float = Field(default=0.0, description="Speed of expansion (0.0 to 1.0)")
+    organic_diffusion_score: float = Field(default=0.0, description="Probability that growth is organic vs coordinated (0.0 to 1.0)")
+    coordinated_campaign_risk: float = Field(default=0.0, description="Risk that it's a sybil/bot driven campaign (0.0 to 1.0)")
+
+class NarrativePrediction(BaseModel):
+    """Predictive signals comparing narrative vs price."""
+    target_id: str
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    
+    attention_price_mismatch: bool = Field(default=False, description="Social attention accelerating before price")
+    late_hype_condition: bool = Field(default=False, description="Price expanded but attention slowing")
+    
+    historical_similarity: float = Field(default=0.0, description="Similarity to past narrative lifecycles")
+    entry_timing_signal: float = Field(default=0.0, description="Signal strength for early entry (0.0 to 1.0)")
+    exit_risk_signal: float = Field(default=0.0, description="Risk signal for late exit (0.0 to 1.0)")
