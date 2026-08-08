@@ -1,1 +1,1 @@
-pytest_plugins = ["pytest_asyncio.plugin"]
+# Empty to avoid double registration of pytest_asyncio
