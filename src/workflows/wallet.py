@@ -17,7 +17,8 @@ from src.intelligence.wallet import (
     WalletScoringEngine,
     WalletClusteringEngine,
     WalletGraphEngine,
-    WalletReputationEngine
+    WalletReputationEngine,
+    SectionSixIntelligenceEngine
 )
 
 logger = logging.getLogger(__name__)
@@ -27,6 +28,7 @@ class WalletWorkflow(Workflow):
     Upgraded Wallet Workflow.
     Maintains wallet history/positions, runs multi-dimensional scoring,
     updates reputation labels, links wallets in a graph, and alerts on followed wallets.
+    Integrates Section 6 Smart Money, Whale Executable Liquidity, Manipulation, and Probabilistic Graph engines.
     """
     def __init__(
         self,
@@ -36,13 +38,15 @@ class WalletWorkflow(Workflow):
         graph_engine: Optional[WalletGraphEngine] = None,
         reputation_engine: Optional[WalletReputationEngine] = None,
         monitor: Optional[TransactionMonitor] = None,
-        detector: Optional[BuySellDetector] = None
+        detector: Optional[BuySellDetector] = None,
+        section_six_engine: Optional[SectionSixIntelligenceEngine] = None
     ):
         self.profiler = profiler or WalletProfiler()
         self.scoring_engine = scoring_engine or WalletScoringEngine()
         self.clustering_engine = clustering_engine or WalletClusteringEngine()
         self.graph_engine = graph_engine or WalletGraphEngine()
         self.reputation_engine = reputation_engine or WalletReputationEngine()
+        self.section_six_engine = section_six_engine or SectionSixIntelligenceEngine()
         
         self.monitor = monitor or TransactionMonitor()
         self.detector = detector or BuySellDetector()
@@ -222,12 +226,46 @@ class WalletWorkflow(Workflow):
                     properties={"confidence": r["confidence"]}
                 )
 
-        # 8. Persist updated profile
+        # 8. Section 6 Intelligence Enhancements: Smart Money Skill, Probabilistic Graph, & Token Manipulation
+        smart_money_eval = self.section_six_engine.evaluate_smart_money(profile)
+        profile.metadata["smart_money_predictive_evaluation"] = smart_money_eval.model_dump(mode="json")
+        
+        # Record probabilistic evidence for funding sources
+        for f in profile.funding_sources:
+            self.section_six_engine.record_probabilistic_evidence(
+                source=f.sender_address,
+                target=profile.address,
+                rel_type="FUNDED",
+                evidence_type="COMMON_FUNDING",
+                weight=0.95,
+                details={"tx_hash": f.tx_hash, "amount": f.amount}
+            )
+
+        # Run manipulation & downgrade check if token_address is present
+        downgrade_signal = None
+        if token_address:
+            manipulation_report, downgrade_signal = self.section_six_engine.analyze_token_manipulation(
+                token_address=token_address,
+                chain=chain,
+                holder_profiles=all_profiles
+            )
+            profile.metadata["latest_token_manipulation_report"] = manipulation_report.model_dump(mode="json")
+            profile.metadata["latest_downgrade_signal"] = downgrade_signal.model_dump(mode="json")
+            if downgrade_signal.downgrade_recommended:
+                logger.warning(
+                    f"[{self.name}] Token {token_address} DOWNGRADE RECOMMENDED! "
+                    f"Security Multiplier: {downgrade_signal.security_risk_multiplier}x, "
+                    f"Penalty: -{downgrade_signal.opportunity_penalty_points} pts. Reason: {downgrade_signal.reason}"
+                )
+
+        # 9. Persist updated profile
         await postgres_store.upsert_entity(profile)
 
-        # 9. Alerting for followed wallets or reputation changes
+        # 10. Alerting for followed wallets, reputation changes, or manipulation downgrades
         label_change = old_labels != new_labels
-        if profile.is_followed or label_change:
+        trigger_alert = profile.is_followed or label_change or (downgrade_signal and downgrade_signal.downgrade_recommended)
+        
+        if trigger_alert:
             alert_payload = {
                 "source_app_id": "wallet_intelligence_workflow",
                 "event_category": "wallet_alert",
@@ -237,9 +275,11 @@ class WalletWorkflow(Workflow):
                     "is_followed": profile.is_followed,
                     "reputation_labels": [l.model_dump(mode="json") for l in profile.reputation_labels],
                     "score": profile.score.model_dump(mode="json"),
+                    "smart_money_evaluation": smart_money_eval.model_dump(mode="json"),
                     "label_change": label_change,
                     "previous_labels": list(old_labels),
-                    "current_labels": list(new_labels)
+                    "current_labels": list(new_labels),
+                    "downgrade_signal": downgrade_signal.model_dump(mode="json") if downgrade_signal else None
                 }
             }
             logger.warning(f"[{self.name}] Alert triggered for wallet {profile.address}! Labels: {list(new_labels)}")
