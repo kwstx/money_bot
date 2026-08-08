@@ -26,25 +26,37 @@ class NumericExtractor(BaseExtractor):
             
         # Extract Amounts (suffix currency)
         for match in AMOUNT_PATTERN.finditer(text):
+            val_str = match.group(1).lower()
+            multiplier = ""
+            if val_str[-1] in ('k', 'm', 'b'):
+                multiplier = val_str[-1]
+                val_str = val_str[:-1]
+                
             currency = match.group(2).upper()
             if currency == '$':
                 currency = 'USD'
             entities.append({
                 "entity_type": "amount",
-                "value": match.group(1),
+                "value": val_str,
                 "context": self._get_context(text, match.start(), match.end()),
                 "confidence": 0.9,
-                "metadata": {"currency": currency}
+                "metadata": {"currency": currency, "multiplier": multiplier}
             })
             
         # Extract Dollar Amounts (prefix $)
         for match in DOLLAR_AMOUNT_PATTERN.finditer(text):
+            val_str = match.group(1).lower()
+            multiplier = ""
+            if val_str[-1] in ('k', 'm', 'b'):
+                multiplier = val_str[-1]
+                val_str = val_str[:-1]
+                
             entities.append({
                 "entity_type": "amount",
-                "value": match.group(1),
+                "value": val_str,
                 "context": self._get_context(text, match.start(), match.end()),
                 "confidence": 0.9,
-                "metadata": {"currency": "USD"}
+                "metadata": {"currency": "USD", "multiplier": multiplier}
             })
             
         return entities

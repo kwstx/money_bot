@@ -75,7 +75,18 @@ class ExtractedEntity(BaseModel):
     value: str = Field(..., description="The extracted string value")
     context: str = Field(default="", description="Surrounding text or context where it was found")
     confidence: float = Field(default=1.0, description="Confidence score of this extraction (0.0 to 1.0)")
+    is_valid: bool = Field(default=True, description="Whether the entity passed structural/existence validation")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional enriched data (e.g., blockchain_id, chain_name, token_symbol)")
+
+
+class EntityRelationship(BaseModel):
+    """Represents a directed relationship between two entities."""
+    subject: str = Field(..., description="The subject of the action (e.g., a wallet address)")
+    subject_type: str = Field(..., description="The type of the subject (e.g., 'wallet')")
+    action: str = Field(..., description="The action performed (e.g., 'buy', 'sell', 'transfer')")
+    object_target: str = Field(..., description="The object of the action (e.g., a token address)")
+    object_type: str = Field(..., description="The type of the object (e.g., 'token')")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional context about the relationship")
 
 
 class ParsedIntelligenceEvent(BaseModel):
@@ -86,6 +97,7 @@ class ParsedIntelligenceEvent(BaseModel):
     
     normalized_text: str = Field(..., description="The cleaned, normalized version of the notification body")
     entities: list[ExtractedEntity] = Field(default_factory=list, description="All entities extracted during the pipeline")
+    relationships: list[EntityRelationship] = Field(default_factory=list, description="Explicit relationships between entities")
     
     primary_category: str = Field(default="unknown", description="The overall determined category of the notification")
     overall_confidence: float = Field(default=0.0, description="Overall confidence score for the parsing result (0.0 to 1.0)")

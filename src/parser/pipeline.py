@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from src.schemas import CanonicalNotificationEvent, ParsedIntelligenceEvent, ExtractedEntity
+from src.schemas import CanonicalNotificationEvent, ParsedIntelligenceEvent, ExtractedEntity, EntityRelationship
 from src.parser import stages
 
 class NotificationParser:
@@ -38,18 +38,19 @@ class NotificationParser:
         valid_entities = stages.validate_entities(raw_entities)
         
         # Stage 5: Enrichment
-        enriched_entities = stages.enrich_entities(valid_entities)
+        enriched_entities, relationships = stages.enrich_entities(valid_entities)
         
         # Stage 6: Confidence Scoring
         confidence = stages.score_confidence(enriched_entities, preprocessed_text)
         
         # Stage 7: Serialization
-        return self._serialize(event, preprocessed_text, enriched_entities, confidence)
+        return self._serialize(event, preprocessed_text, enriched_entities, relationships, confidence)
         
     def _serialize(self, 
                    original_event: CanonicalNotificationEvent, 
                    normalized_text: str, 
                    entities_data: list[dict], 
+                   relationships_data: list[dict],
                    confidence: float) -> ParsedIntelligenceEvent:
         """Stage 7: Serializes the parsed data into a ParsedIntelligenceEvent."""
         
@@ -60,8 +61,20 @@ class NotificationParser:
                 value=ent["value"],
                 context=ent.get("context", ""),
                 confidence=ent.get("confidence", 1.0),
+                is_valid=ent.get("is_valid", True),
                 metadata=ent.get("metadata", {})
             ) for ent in entities_data
+        ]
+        
+        pydantic_relationships = [
+            EntityRelationship(
+                subject=rel["subject"],
+                subject_type=rel["subject_type"],
+                action=rel["action"],
+                object_target=rel["object_target"],
+                object_type=rel["object_type"],
+                metadata=rel.get("metadata", {})
+            ) for rel in relationships_data
         ]
         
         # Determine primary category based on extracted entities or fallback to original
@@ -78,6 +91,7 @@ class NotificationParser:
             timestamp=datetime.now(timezone.utc),
             normalized_text=normalized_text,
             entities=pydantic_entities,
+            relationships=pydantic_relationships,
             primary_category=primary_category,
             overall_confidence=confidence,
             enrichment_data={},
