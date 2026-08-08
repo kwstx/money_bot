@@ -32,6 +32,12 @@ class CommunityMetrics(BaseModel):
     coordinated_activity_score: float = Field(default=0.0, description="Score detecting inorganic coordinated posting (0.0 to 1.0)")
     community_overlap: Dict[str, float] = Field(default_factory=dict, description="Overlap percentage with other known communities")
     
+    # Community Authenticity Metrics
+    organic_discussion_score: float = Field(default=0.0, description="Score for natural vs forced/shilled conversation (0.0 to 1.0)")
+    independent_content_volume: float = Field(default=0.0, description="Volume of user-generated content not from core team")
+    meaningful_interaction_score: float = Field(default=0.0, description="Depth of conversation vs shallow spam (0.0 to 1.0)")
+    diversity_score: float = Field(default=0.0, description="Diversity of participants, demographics or client usage (0.0 to 1.0)")
+    
     overall_health_score: float = Field(default=0.0, description="Aggregated community quality score (0.0 to 1.0)")
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
@@ -68,12 +74,53 @@ class OffChainCatalyst(BaseModel):
     sources: List[str] = Field(default_factory=list, description="URLs or signal IDs that corroborate the event")
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
+class MemeIntelligence(BaseModel):
+    """Analysis of the cultural concept behind a token."""
+    target_id: str
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    
+    recognizability_score: float = Field(default=0.0, description="How well known the underlying meme/concept is (0.0 to 1.0)")
+    emotional_resonance: float = Field(default=0.0, description="Ability to trigger emotion (humor, nostalgia, greed) (0.0 to 1.0)")
+    uniqueness_score: float = Field(default=0.0, description="How distinct the meme is from existing metas (0.0 to 1.0)")
+    adaptability_score: float = Field(default=0.0, description="How easily the meme can be remixed or adapted (0.0 to 1.0)")
+    mainstream_potential: float = Field(default=0.0, description="Capability of spreading beyond crypto audience (0.0 to 1.0)")
+    remix_volume: int = Field(default=0, description="Count of distinct variations/artworks seen")
+    
+    overall_meme_score: float = Field(default=0.0, description="Aggregated meme strength (0.0 to 1.0)")
+
+class BrandAnalysis(BaseModel):
+    """Evaluation of the project's brand identity and consistency."""
+    target_id: str
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    
+    brand_recognition: float = Field(default=0.0, description="How recognizable the visual/textual brand is (0.0 to 1.0)")
+    visual_consistency: float = Field(default=0.0, description="Consistency across different platforms/materials (0.0 to 1.0)")
+    copycat_risk: float = Field(default=0.0, description="Risk that the brand is easily copied or already a derivative (0.0 to 1.0)")
+    community_identity_strength: float = Field(default=0.0, description="How strongly the community identifies with the brand (0.0 to 1.0)")
+    
+    overall_brand_score: float = Field(default=0.0, description="Aggregated brand strength (0.0 to 1.0)")
+
+class MemeLifespanPrediction(BaseModel):
+    """Probabilistic prediction of meme lifecycle phase."""
+    target_id: str
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    
+    current_phase: str = Field(default="UNKNOWN", description="ACCELERATING, PEAKING, SATURATING, DECAYING, UNKNOWN")
+    phase_confidence: float = Field(default=0.0, description="Confidence in current phase (0.0 to 1.0)")
+    
+    estimated_time_to_peak_hours: Optional[float] = Field(default=None)
+    historical_cycle_similarity_score: float = Field(default=0.0, description="Similarity to known historical hype cycles (0.0 to 1.0)")
+
 class SocialIntelligenceResult(BaseModel):
     """Aggregated social intelligence for a specific token or project."""
     target_id: str = Field(..., description="Token address or project ID")
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     community_metrics: Optional[CommunityMetrics] = Field(default=None)
+    meme_intelligence: Optional[MemeIntelligence] = Field(default=None)
+    brand_analysis: Optional[BrandAnalysis] = Field(default=None)
+    lifespan_prediction: Optional[MemeLifespanPrediction] = Field(default=None)
+    
     active_catalysts: List[OffChainCatalyst] = Field(default_factory=list)
     influencer_mentions: List[Dict[str, Any]] = Field(default_factory=list, description="Recent mentions by profiled influencers")
     

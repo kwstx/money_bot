@@ -9,7 +9,10 @@ from .schemas import (
     CommunityMetrics,
     InfluencerProfile,
     OffChainCatalyst,
-    SocialIntelligenceResult
+    SocialIntelligenceResult,
+    MemeIntelligence,
+    BrandAnalysis,
+    MemeLifespanPrediction
 )
 
 logger = logging.getLogger(__name__)
@@ -118,11 +121,21 @@ class SocialIntelligenceEngine:
         if bot_prob < 0.3 and total_signals > 100:
             engagement_quality = 0.8
             
+        # Authenticity metrics (mock implementation based on signal volume and quality)
+        organic_score = 0.8 if bot_prob < 0.2 else 0.3
+        independent_volume = total_signals * 0.7
+        meaningful_interaction = engagement_quality * 0.9
+        diversity = min(1.0, unique_authors / 500)
+            
         metrics = CommunityMetrics(
             project_id=project_id,
             active_participants_count=unique_authors,
             bot_probability_score=bot_prob,
             engagement_quality=engagement_quality,
+            organic_discussion_score=organic_score,
+            independent_content_volume=independent_volume,
+            meaningful_interaction_score=meaningful_interaction,
+            diversity_score=diversity,
             overall_health_score=engagement_quality * (1.0 - bot_prob)
         )
         
@@ -131,6 +144,78 @@ class SocialIntelligenceEngine:
         self.community_history[project_id].append(metrics)
         
         return metrics
+
+    def analyze_meme_culture(self, target_id: str, signals: List[SocialSignal]) -> MemeIntelligence:
+        """
+        Analyze cultural concept, recognizability, and potential for mainstream adoption.
+        Multimodal integration would occur here to evaluate images and text.
+        """
+        # Mock logic based on signals
+        total = len(signals)
+        recognizability = min(1.0, total / 1000)
+        resonance = 0.7
+        uniqueness = 0.6
+        adaptability = 0.8 # Assume highly adaptable if volume is decent
+        mainstream = 0.5 if total > 500 else 0.1
+        remix_vol = int(total * 0.2)
+        
+        overall = (recognizability + resonance + uniqueness + adaptability + mainstream) / 5.0
+        
+        return MemeIntelligence(
+            target_id=target_id,
+            recognizability_score=recognizability,
+            emotional_resonance=resonance,
+            uniqueness_score=uniqueness,
+            adaptability_score=adaptability,
+            mainstream_potential=mainstream,
+            remix_volume=remix_vol,
+            overall_meme_score=overall
+        )
+
+    def analyze_brand_identity(self, target_id: str, signals: List[SocialSignal]) -> BrandAnalysis:
+        """
+        Evaluate brand recognition, consistency, and copycat risk.
+        """
+        # Mock logic based on signals
+        total = len(signals)
+        recognition = min(1.0, total / 800)
+        consistency = 0.8
+        copycat_risk = 0.3
+        identity_strength = 0.7
+        
+        overall = (recognition + consistency + identity_strength + (1.0 - copycat_risk)) / 4.0
+        
+        return BrandAnalysis(
+            target_id=target_id,
+            brand_recognition=recognition,
+            visual_consistency=consistency,
+            copycat_risk=copycat_risk,
+            community_identity_strength=identity_strength,
+            overall_brand_score=overall
+        )
+
+    def predict_meme_lifespan(self, target_id: str, historical_signals: List[SocialSignal]) -> MemeLifespanPrediction:
+        """
+        Compare momentum with historical cycles to predict current phase.
+        """
+        # Mock logic: determine phase based on volume and recency
+        total = len(historical_signals)
+        if total < 50:
+            phase = "ACCELERATING"
+        elif total < 500:
+            phase = "PEAKING"
+        elif total < 1000:
+            phase = "SATURATING"
+        else:
+            phase = "DECAYING"
+            
+        return MemeLifespanPrediction(
+            target_id=target_id,
+            current_phase=phase,
+            phase_confidence=0.75,
+            estimated_time_to_peak_hours=24.0 if phase == "ACCELERATING" else 0.0,
+            historical_cycle_similarity_score=0.8
+        )
 
     def evaluate_influencer(self, profile: InfluencerProfile) -> InfluencerProfile:
         """
@@ -185,6 +270,13 @@ class SocialIntelligenceEngine:
         if latest_metrics:
             base_sentiment = (latest_metrics.overall_health_score * 2.0) - 1.0
             
+        # Mock historical signals retrieval for analysis
+        mock_signals = [] # In real engine, fetch historical SocialSignals for this target
+        
+        meme_intel = self.analyze_meme_culture(target_id, mock_signals)
+        brand_analysis = self.analyze_brand_identity(target_id, mock_signals)
+        lifespan_pred = self.predict_meme_lifespan(target_id, mock_signals)
+            
         # Generate actionable signals
         actionable_signals = []
         for cat in target_catalysts:
@@ -198,6 +290,9 @@ class SocialIntelligenceEngine:
         result = SocialIntelligenceResult(
             target_id=target_id,
             community_metrics=latest_metrics,
+            meme_intelligence=meme_intel,
+            brand_analysis=brand_analysis,
+            lifespan_prediction=lifespan_pred,
             active_catalysts=target_catalysts,
             influencer_mentions=influencer_mentions,
             social_sentiment_score=base_sentiment,
