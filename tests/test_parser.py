@@ -22,12 +22,13 @@ def test_extract_entities_stage():
     text = "Check out $PEPE on https://etherscan.io ! Send 1.5 ETH to 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
     entities = extract_entities(text)
     
-    assert len(entities) == 4
+    assert len(entities) == 5
     types = [e["entity_type"] for e in entities]
     assert "token" in types
     assert "url" in types
     assert "amount" in types
     assert "wallet" in types
+    assert "blockchain" in types
     
     # Check specific extractions
     for e in entities:
@@ -47,7 +48,7 @@ def test_validate_and_enrich_stages():
     valid = validate_entities(entities)
     assert len(valid) == len(entities)
     
-    enriched = enrich_entities(valid)
+    enriched, relationships = enrich_entities(valid)
     # Check if URL was enriched
     url_ent = next(e for e in enriched if e["entity_type"] == "url")
     assert url_ent["metadata"].get("is_explorer") is True
@@ -75,11 +76,65 @@ def test_pipeline_integration():
     assert parsed.original_event_id == event.event_id
     assert "Whale transferred 500 SOL" in parsed.normalized_text
     
-    assert len(parsed.entities) == 2
+    assert len(parsed.entities) == 4
     
     entity_types = {e.entity_type for e in parsed.entities}
     assert "amount" in entity_types
     assert "wallet" in entity_types
+    assert "action" in entity_types
+    assert "blockchain" in entity_types
     
     assert parsed.primary_category == "transaction"
     assert parsed.overall_confidence > 0.5
+    assert parsed.parser_version == "1.0.0"
+
+def test_parser_version_and_entity_confidence():
+    """Test that extracted entities receive correct certainty-based confidence scores and parser version is recorded."""
+    parser = NotificationParser()
+    
+    # 1. Test Semantic Extractor confidence variations
+    text = "whale bought contract verified rug"
+    event = CanonicalNotificationEvent(
+        source_app_id="test_app",
+        body=text,
+        raw_payload={"raw": text}
+    )
+    parsed = parser.parse(event)
+    
+    # Verify parser version
+    assert parsed.parser_version == "1.0.0"
+    
+    # Find semantic events and verify confidence mapping
+    semantic_ents = {e.value: e.confidence for e in parsed.entities if e.entity_type == "semantic_event"}
+    assert semantic_ents["SWAP_BUY"] == 0.65          # Moderately descriptive
+    assert semantic_ents["CONTRACT_VERIFIED"] == 0.75 # Highly specific/unambiguous
+    assert semantic_ents["LIQUIDITY_REMOVE"] == 0.50  # Slang/highly ambiguous
+    
+    # 2. Test Validation and Confidence adjustment
+    # Valid Solana wallet (passes base58 length validation) -> confidence boosted to 0.95
+    # Invalid Solana wallet -> confidence dropped to 0.1
+    # Invalid EVM address (bad checksum mixed casing) -> confidence dropped to 0.1
+    sol_valid = "9v9CwkB4pE6tNZb9TjT78qF1U32S9vXm6vK5rS98QxW1"
+    sol_invalid = "0000000000000000000000000000000"  # Invalid characters/length
+    evm_invalid = "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA9604a" # Last char lowercase instead of uppercase checksum
+    
+    text_validation = f"Valid Solana: {sol_valid}, Invalid Solana: {sol_invalid}, Invalid EVM: {evm_invalid}"
+    event_val = CanonicalNotificationEvent(
+        source_app_id="test_app",
+        body=text_validation,
+        raw_payload={"raw": text_validation}
+    )
+    parsed_val = parser.parse(event_val)
+    
+    # Verify wallets confidence
+    wallets = {e.value: e for e in parsed_val.entities if e.entity_type == "wallet"}
+    
+    assert wallets[sol_valid].is_valid is True
+    assert wallets[sol_valid].confidence == 0.95
+    
+    assert wallets[sol_invalid].is_valid is False
+    assert wallets[sol_invalid].confidence == 0.1
+    
+    assert wallets[evm_invalid].is_valid is False
+    assert wallets[evm_invalid].confidence == 0.1
+

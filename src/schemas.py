@@ -102,5 +102,49 @@ class ParsedIntelligenceEvent(BaseModel):
     primary_category: str = Field(default="unknown", description="The overall determined category of the notification")
     overall_confidence: float = Field(default=0.0, description="Overall confidence score for the parsing result (0.0 to 1.0)")
     
+    parser_version: str = Field(default="1.0.0", description="The version of the parser logic used")
     enrichment_data: Dict[str, Any] = Field(default_factory=dict, description="Additional context fetched or inferred during enrichment")
     telemetry: Dict[str, Any] = Field(default_factory=dict, description="Telemetry tracking timestamps")
+
+class CanonicalIdentity(BaseModel):
+    """Base class for all canonical entities in the platform."""
+    canonical_id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="Globally unique canonical identifier")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    schema_version: str = Field(default="1.0.0")
+
+class TokenIdentity(CanonicalIdentity):
+    """Canonical representation of a Token."""
+    address: str = Field(..., description="Token contract address")
+    chain: str = Field(..., description="Blockchain network (e.g., ethereum, solana)")
+    symbol: Optional[str] = Field(default=None)
+    name: Optional[str] = Field(default=None)
+    decimals: Optional[int] = Field(default=None)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+class WalletIdentity(CanonicalIdentity):
+    """Canonical representation of a Wallet."""
+    address: str = Field(..., description="Wallet address")
+    chain: str = Field(..., description="Blockchain network")
+    wallet_type: str = Field(default="eoa", description="e.g., eoa, smart_contract, exchange")
+    risk_score: Optional[float] = Field(default=None)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+class TransactionIdentity(CanonicalIdentity):
+    """Canonical representation of a Transaction."""
+    tx_hash: str = Field(..., description="Transaction hash")
+    chain: str = Field(..., description="Blockchain network")
+    block_number: Optional[int] = Field(default=None)
+    timestamp: Optional[datetime] = Field(default=None)
+    from_address: Optional[str] = Field(default=None)
+    to_address: Optional[str] = Field(default=None)
+    value: Optional[str] = Field(default=None)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+class NarrativeIdentity(CanonicalIdentity):
+    """Canonical representation of a Market Narrative."""
+    name: str = Field(..., description="Narrative name (e.g., ai_tokens, memecoins)")
+    description: Optional[str] = Field(default=None)
+    sentiment_score: Optional[float] = Field(default=None)
+    related_tokens: list[str] = Field(default_factory=list)
+    metadata: Dict[str, Any] = Field(default_factory=dict)

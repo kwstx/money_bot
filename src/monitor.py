@@ -25,6 +25,24 @@ class HealthMonitor:
         self.last_notification_received_at = time.time()
         self.total_notifications_received += 1
         self.rate_status = "healthy"
+        
+    def check_quarantine(self, payload: dict) -> bool:
+        """
+        Quarantine suspicious data before it hits the canonical bus.
+        Returns True if the payload should be quarantined (dropped/flagged).
+        """
+        confidence = payload.get("confidence", 1.0)
+        if confidence < 0.3:
+            logger.warning("Quarantining event due to extreme low confidence.")
+            return True
+            
+        # Example: if multiple providers are specified but they disagree wildly on price
+        providers = payload.get("metadata", {}).get("providers", [])
+        if len(providers) > 1 and payload.get("price_variance_pct", 0) > 20.0:
+            logger.warning("Quarantining event due to provider disagreement on price (>20% variance).")
+            return True
+            
+        return False
 
     async def _check_redis_connectivity(self) -> bool:
         """Verify that Redis is connected and writable."""
@@ -52,6 +70,20 @@ class HealthMonitor:
             self.redis_status = "disconnected"
             return False
 
+    async def _check_kafka_connectivity(self) -> bool:
+        """Verify that Kafka is connected."""
+        if getattr(publisher, "kafka", None) is None:
+            logger.warning("Kafka producer is not initialized.")
+            return False
+            
+        try:
+            # Check cluster metadata as a basic ping
+            await publisher.kafka.client.check_version()
+            return True
+        except Exception as e:
+            logger.error(f"Kafka connectivity check failed: {e}")
+            return False
+
     async def _monitor_loop(self):
         """Background loop to monitor health continuously."""
         logger.info("Health monitor loop started.")
@@ -59,8 +91,9 @@ class HealthMonitor:
             try:
                 # 1. Verify queue and storage connectivity
                 redis_healthy = await self._check_redis_connectivity()
+                kafka_healthy = await self._check_kafka_connectivity()
                 
-                if not redis_healthy:
+                if not redis_healthy or not kafka_healthy:
                     logger.warning("Queue connectivity compromised. Attempting self-recovery...")
                     self.recovery_attempts_count += 1
                     try:

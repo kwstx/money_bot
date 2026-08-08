@@ -37,6 +37,7 @@ class MockPublisher:
 async def fomo_app(monkeypatch):
     """Fixture to start up the FastAPI app with mocked publisher."""
     mock_pub = MockPublisher()
+    await mock_pub.redis.flushdb()
     
     # Patch the global publisher in core
     import src.core
@@ -139,7 +140,7 @@ async def test_burst_of_events(fomo_app):
         tasks = []
         for i in range(1000):
             payload = copy.deepcopy(VALID_NOTIFICATION)
-            payload["telemetry"]["producer_time"] = i # make them unique so they don't deduplicate
+            payload["payload"]["timestamp"] = i # make them unique so they don't deduplicate
             tasks.append(client.post("/webhooks/fomo", json=payload))
             
         responses = await asyncio.gather(*tasks)

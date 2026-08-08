@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from src.schemas import CanonicalNotificationEvent, ParsedIntelligenceEvent, ExtractedEntity, EntityRelationship
-from src.parser import stages
+from src.parser import stages, __version__ as PARSER_VERSION
 
 class NotificationParser:
     """
@@ -94,6 +94,7 @@ class NotificationParser:
             relationships=pydantic_relationships,
             primary_category=primary_category,
             overall_confidence=confidence,
+            parser_version=PARSER_VERSION,
             enrichment_data={},
             telemetry=original_event.telemetry  # carry over telemetry
         )

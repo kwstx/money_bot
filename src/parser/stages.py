@@ -94,6 +94,10 @@ def validate_entities(entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             except ValueError:
                 ent["is_valid"] = False
                 
+            # If valid, Solana patterns are cryptographically validated to be high certainty
+            if ent["is_valid"]:
+                ent["confidence"] = 0.95
+                
         # Standardize Numerical Units
         if ent["entity_type"] == "amount":
             try:
@@ -113,6 +117,10 @@ def validate_entities(entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             except ValueError:
                 ent["is_valid"] = False
                 
+        # If any validation failed, drop the extraction confidence to low/near-zero certainty
+        if not ent["is_valid"]:
+            ent["confidence"] = 0.1
+            
         # We keep all entities, valid or not, but they are flagged.
         valid_entities.append(ent)
             

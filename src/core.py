@@ -54,6 +54,10 @@ class CoreListener:
         if is_duplicate:
             logger.info(f"Duplicate notification detected (fingerprint: {fingerprint}). Discarding.")
             return
+            
+        if monitor.check_quarantine(payload):
+            logger.warning(f"Notification quarantined. Discarding from canonical bus.")
+            return
 
         tracker.record_parse_start()
         

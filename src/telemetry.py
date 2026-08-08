@@ -5,29 +5,18 @@ from prometheus_client import Histogram
 # Standard buckets suitable for high-throughput messaging: 1ms to 10s
 BUCKETS = (1.0, 5.0, 10.0, 25.0, 50.0, 100.0, 250.0, 500.0, 1000.0, 2500.0, 5000.0, 10000.0, float("inf"))
 
-receipt_to_queue_latency = Histogram(
-    "fomo_listener_receipt_to_queue_latency_ms",
-    "Latency from webhook receipt to queue insertion attempt",
-    buckets=BUCKETS
-)
+from prometheus_client import Counter, Gauge
 
-queue_insertion_latency = Histogram(
-    "fomo_listener_queue_insertion_latency_ms",
-    "Latency to insert the event into the queue/broker",
-    buckets=BUCKETS
-)
+# Existing latencies
+receipt_to_queue_latency = Histogram("fomo_listener_receipt_to_queue_latency_ms", "Latency from webhook receipt to queue insertion attempt", buckets=BUCKETS)
+queue_insertion_latency = Histogram("fomo_listener_queue_insertion_latency_ms", "Latency to insert the event into the queue/broker", buckets=BUCKETS)
+parse_latency = Histogram("fomo_listener_parse_latency_ms", "Latency for parsing and canonicalizing the event", buckets=BUCKETS)
+end_to_end_latency = Histogram("fomo_listener_e2e_latency_ms", "Total latency from receipt to successful publication", buckets=BUCKETS)
 
-parse_latency = Histogram(
-    "fomo_listener_parse_latency_ms",
-    "Latency for parsing and canonicalizing the event",
-    buckets=BUCKETS
-)
-
-end_to_end_latency = Histogram(
-    "fomo_listener_e2e_latency_ms",
-    "Total latency from receipt to successful publication",
-    buckets=BUCKETS
-)
+# New Intelligence Platform Metrics
+data_quality_issues = Counter("intelligence_data_quality_issues_total", "Count of events failing schema or validation checks", ["issue_type"])
+model_confidence = Gauge("intelligence_model_confidence_score", "Average confidence score of the current model extraction")
+entity_coverage = Counter("intelligence_entity_coverage_total", "Count of specific canonical entities extracted", ["entity_type"])
 
 def current_time_ms() -> float:
     return time.time() * 1000.0
@@ -63,6 +52,15 @@ class TelemetryTracker:
             queue_insertion_latency.observe(self.post_queue_time - self.pre_queue_time)
         if self.receipt_time:
             end_to_end_latency.observe(self.post_queue_time - self.receipt_time)
+
+    def record_data_quality_issue(self, issue_type: str):
+        data_quality_issues.labels(issue_type=issue_type).inc()
+
+    def record_entity_coverage(self, entity_type: str):
+        entity_coverage.labels(entity_type=entity_type).inc()
+
+    def set_model_confidence(self, score: float):
+        model_confidence.set(score)
 
     def to_dict(self) -> dict:
         return {

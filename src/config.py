@@ -12,10 +12,16 @@ class Settings(BaseSettings):
     auth_header_name: str = "X-API-Key"
     max_payload_size_bytes: int = 65536  # Default limit: 64 KB
     
-    # Redis Message Broker settings
+    # Redis Message Broker settings (used for dedup cache now)
     redis_url: str = "redis://localhost:6379/0"
+    
+    # Kafka Message Broker settings
+    kafka_bootstrap_servers: str = "localhost:9092"
     events_topic: str = "fomo.events"
     raw_events_topic: str = "fomo.raw_events"
+    
+    # Postgres Operational Store settings
+    postgres_url: str = "postgresql+asyncpg://money_bot:money_bot_password@localhost:5432/intelligence_db"
     
     # Deduplication settings
     dedup_enabled: bool = True
